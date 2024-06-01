@@ -3,8 +3,12 @@ import numpy as np
 from PIL import Image
 import imutils
 import easyocr
+import os
 
-img_path =  "plaka_okuma\data\WhatsApp Image 2024-02-27 at 14.10.30.jpeg"
+img_path =  "plaka_okuma\data\licence_plate.jpg"
+
+base_name = os.path.basename(img_path)
+file_name, file_ext = os.path.splitext(base_name)
 
 def blob_coloring(sharp_roi) :
     
@@ -25,11 +29,11 @@ def blob_coloring(sharp_roi) :
     return labeled_img, binary_roi , num_labels , labels_im
 
 def seperateTxt (binary_roi , num_labels , labels_im):
-    # Boş bir görüntü oluşturun (aynı boyutta, siyah)
+    # Boş bir görüntü oluşturur (aynı boyutta, siyah)
     output = np.zeros_like(binary_roi)
-    # Her bir bileşeni analiz edin ve plaka yazıları olduğuna inandığınız bileşenleri seçin
-    min_area = 10  # Bu değeri ayarlayarak optimize edin
-    max_area = 200  # Bu değeri ayarlayarak optimize edin
+    
+    min_area = 15  # Bu değeri manuel testler sonucu optimize ettik
+    max_area = 600  # Bu değeri manuel testler sonucu optimize ettik
     for i in range(1, num_labels):  # 0 etiketi arka plan olduğu için 1'den başlıyoruz
         mask = (labels_im == i).astype("uint8") * 255
         area = cv2.countNonZero(mask)
@@ -37,10 +41,10 @@ def seperateTxt (binary_roi , num_labels , labels_im):
             output = cv2.bitwise_or(output, mask)
     return output
 
-def readingNumber (binary_roi ):
+def readingNumber (seperated_roi ):
     # OCR ile karakterleri okuyun
     reader = easyocr.Reader(['en'])
-    result = reader.readtext(binary_roi)
+    result = reader.readtext(seperated_roi)
     return result
 
 def showImage(cropped, contrasted_roi,median_filtered_roi,sharp_roi,blobedImg,binary_roi,seperatedRoi, canny):
@@ -55,16 +59,16 @@ def showImage(cropped, contrasted_roi,median_filtered_roi,sharp_roi,blobedImg,bi
 
 def writeImage(cropped, contrasted_roi,median_filtered_roi,canny,blobedImg,binary_roi,seperatedRoi,img,img_gray , sharp_roi):
         print("Deneme")
-        cv2.imwrite("deneme/Cropped.png", cropped)
-        cv2.imwrite("deneme/HighContrast.png", contrasted_roi)
-        cv2.imwrite("deneme/median_filtered.png", median_filtered_roi)
-        cv2.imwrite("deneme/Sharped.png", sharp_roi)
-        cv2.imwrite("deneme/Canny_Edge.png", canny)
-        cv2.imwrite("deneme/Original.png", img)
-        cv2.imwrite("deneme/Gray.png", img_gray)
-        cv2.imwrite("deneme/BlobeColoring.png", blobedImg)
-        cv2.imwrite("deneme/BinaryRoi.png", binary_roi)
-        cv2.imwrite("deneme/SeperatedBlobed.png", seperatedRoi)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Cropped.png", cropped)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_HighContrast.png", contrasted_roi)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_median_filtered.png", median_filtered_roi)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Sharped.png", sharp_roi)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Canny_Edge.png", canny)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Original.png", img)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Gray.png", img_gray)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_BlobeColoring.png", blobedImg)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_BinaryRoi.png", binary_roi)
+        cv2.imwrite(f"plaka_okuma\Results/{file_name}_SeperatedBlobed.png", seperatedRoi)
 
 def main():
 
@@ -150,7 +154,7 @@ def main():
         seperatedRoi = seperateTxt(binary_roi= binary_roi , num_labels= num_labels , labels_im= labels_im)
 
         #Goruntunun son halinde yazi tespiti gerceklesiyor
-        result = readingNumber(binary_roi=seperatedRoi)
+        result = readingNumber(seperated_roi=seperatedRoi)
 
         showImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, canny=canny)
         writeImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, img=img, img_gray=img_gray, canny=canny)
@@ -159,7 +163,7 @@ def main():
         # OCR sonuçlarını yazar
 
         for (bbox, text, prob) in result:
-            if float(prob) >= 0.5:
+            if float(prob) >= 0.4:
                 print(f'Text: {text}, Probability: {prob}')
 
         
