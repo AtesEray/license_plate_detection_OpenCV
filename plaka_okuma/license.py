@@ -4,6 +4,8 @@ from PIL import Image
 import imutils
 import easyocr
 
+img_path =  "plaka_okuma\data\WhatsApp Image 2024-02-27 at 14.10.30.jpeg"
+
 def blob_coloring(sharp_roi) :
     
     # Eşikleme (Thresholding) ile ikili (binary) görüntü elde edin
@@ -41,9 +43,32 @@ def readingNumber (binary_roi ):
     result = reader.readtext(binary_roi)
     return result
 
+def showImage(cropped, contrasted_roi,median_filtered_roi,sharp_roi,blobedImg,binary_roi,seperatedRoi, canny):
+        cv2.imshow("Cropped",cropped)
+        cv2.imshow("HighContrast", contrasted_roi)
+        cv2.imshow("median_filtered", median_filtered_roi)
+        cv2.imshow("Sharped", sharp_roi)
+        cv2.imshow("BlobeColoring", blobedImg)
+        cv2.imshow("BinaryRoi", binary_roi)
+        cv2.imshow("SeperatedBlobed" , seperatedRoi)
+        cv2.imshow("CannyEdge", canny)
+
+def writeImage(cropped, contrasted_roi,median_filtered_roi,canny,blobedImg,binary_roi,seperatedRoi,img,img_gray , sharp_roi):
+        print("Deneme")
+        cv2.imwrite("deneme/Cropped.png", cropped)
+        cv2.imwrite("deneme/HighContrast.png", contrasted_roi)
+        cv2.imwrite("deneme/median_filtered.png", median_filtered_roi)
+        cv2.imwrite("deneme/Sharped.png", sharp_roi)
+        cv2.imwrite("deneme/Canny_Edge.png", canny)
+        cv2.imwrite("deneme/Original.png", img)
+        cv2.imwrite("deneme/Gray.png", img_gray)
+        cv2.imwrite("deneme/BlobeColoring.png", blobedImg)
+        cv2.imwrite("deneme/BinaryRoi.png", binary_roi)
+        cv2.imwrite("deneme/SeperatedBlobed.png", seperatedRoi)
+
 def main():
 
-    img = cv2.imread(path)
+    img = cv2.imread(img_path)
     img = cv2.resize(img, (720,720))
     # Griye çevirme işlemi yapılıyor
     img_gray = cv2.cvtColor(img , cv2.COLOR_BGR2GRAY)
@@ -51,7 +76,7 @@ def main():
 
     #Kenarları bulmak için canny uygulanıyor
     low_threshold = 110
-    high_threshold = 225
+    high_threshold = 250
     canny= cv2.Canny(img_blur, low_threshold,high_threshold)
 
 
@@ -67,7 +92,7 @@ def main():
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:10]
 
     screen = None
-
+    cropped = None
     for cnt in cnts:
 
         # epsilon, konturun çevresinin %1.8'i olarak hesaplanır. Bu, konturun yaklaştırılması (approximation) için hassasiyet değeridir.
@@ -82,16 +107,28 @@ def main():
     if  screen is not None:
         mask = np.zeros(img_gray.shape, np.uint8)
         (x,y) = np.where(mask == 255)
-        (topx , topy) = (np.min(x), np.min(y))
-        (bottomx , bottomy) = (np.max(x), np.max(y))
 
-        cropped = img_gray[topx: bottomx  +1, topy: bottomy+1]
+        if x.size == 0 or y.size == 0:
+            print("No white pixels found in the mask.")
+            # Handle the case when no white pixels are found
+            # For example, you can skip the cropping step or set a default cropped region
+            cropped = img_gray  # or set a default region
+        else: 
+             
+            (topx , topy) = (np.min(x), np.min(y))
+            (bottomx , bottomy) = (np.max(x), np.max(y))
+
+            cropped = img_gray[topx: bottomx  +1, topy: bottomy+1]
 
     else:
         print("hata")
 
         
     # Kontrastı artırmak için CLAHE kullandik
+    if cropped is  None:
+        print("Tespit basarisiz")
+        return 0
+
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     contrasted_roi = clahe.apply(cropped)
 
@@ -108,42 +145,25 @@ def main():
         #Blob colorin fonksiyonu uygulaniyor
         blobedImg , binary_roi , num_labels , labels_im = blob_coloring(sharp_roi=sharp_roi)
 
+
         #Blob coloring sonrasi yazilari ayirmak isin seperateTxt fonksiyonu aktive edildi
         seperatedRoi = seperateTxt(binary_roi= binary_roi , num_labels= num_labels , labels_im= labels_im)
 
         #Goruntunun son halinde yazi tespiti gerceklesiyor
         result = readingNumber(binary_roi=seperatedRoi)
 
-        showImage()
-        writeImage()
+        showImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, canny=canny)
+        writeImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, img=img, img_gray=img_gray, canny=canny)
         
 
         # OCR sonuçlarını yazar
+
         for (bbox, text, prob) in result:
-            print(f'Text: {text}, Probability: {prob}')
+            if float(prob) >= 0.5:
+                print(f'Text: {text}, Probability: {prob}')
 
         
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
-    def showImage():
-        cv2.imshow("Cropped",cropped)
-        cv2.imshow("HighContrast", contrasted_roi)
-        cv2.imshow("median_filtered", median_filtered_roi)
-        cv2.imshow("Sharped", sharp_roi)
-        cv2.imshow("BlobeColoring", blobedImg)
-        cv2.imshow("BinaryRoi", binary_roi)
-        cv2.imshow("SeperatedBlobed" , seperatedRoi)
-
-    def writeImage():
-        cv2.imwrite("ssler/Cropped.png", cropped)
-        cv2.imwrite("ssler/HighContrast.png", contrasted_roi)
-        cv2.imwrite("ssler/median_filtered.png", median_filtered_roi)
-        cv2.imwrite("ssler/Sharped.png", sharp_roi)
-        cv2.imwrite("ssler/Canny_Edge.png", canny)
-        cv2.imwrite("ssler/Original.png", img)
-        cv2.imwrite("ssler/Gray.png", img_gray)
-        cv2.imwrite("ssler/BlobeColoring.png", blobedImg)
-        cv2.imwrite("ssler/BinaryRoi.png", binary_roi)
-        cv2.imwrite("ssler/SeperatedBlobed.png", seperatedRoi)
+main()
