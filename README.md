@@ -18,6 +18,7 @@ The 2nd version of the License Plate Reading system has been released.
 Many additional functions have been added to the previous version. Many of these were used to separate the text in the detected license plate area.
 
 #What is new in Version 2?
+
 -By using blurring and sharpening processes more effectively, the detection success of the license plate area has been increased.
 -By applying "blob coloring", the letters on the plate can now be successfully separated from the entire picture. Our text detection operations are carried out much more accurately than in the previous version.
 -"EasyOCR" was started to be used instead of "Pytesseract" library and much more efficient results were obtained.
