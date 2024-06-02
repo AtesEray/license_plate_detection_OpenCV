@@ -11,14 +11,14 @@ file_name, file_ext = os.path.splitext(base_name)
 
 def blob_coloring(sharp_roi) :
     
-    # Eşikleme (Thresholding) ile ikili (binary) görüntü elde edin
+    # Obtain binary images with Thresholding
     _, binary_roi = cv2.threshold(sharp_roi, 60, 255, cv2.THRESH_BINARY_INV)
 
 
-    # Bağlantı bileşeni analizi (Blob coloring)
+    # Connection component analysis (Blob coloring)
     num_labels, labels_im = cv2.connectedComponents(binary_roi)
 
-    # Her bir bileşeni farklı bir renkle işaretleyin
+    # Mark each component with a different color
     label_hue = np.uint8(179 * labels_im / np.max(labels_im))
     blank_ch = 255 * np.ones_like(label_hue)
     labeled_img = cv2.merge([label_hue, blank_ch, blank_ch])
@@ -28,12 +28,12 @@ def blob_coloring(sharp_roi) :
     return labeled_img, binary_roi , num_labels , labels_im
 
 def seperateTxt (binary_roi , num_labels , labels_im):
-    # Boş bir görüntü oluşturur (aynı boyutta, siyah)
+    # Creates a blank image (same size, black)
     output = np.zeros_like(binary_roi)
     
-    min_area = 15  # Bu değeri manuel testler sonucu optimize ettik
-    max_area = 600  # Bu değeri manuel testler sonucu optimize ettik
-    for i in range(1, num_labels):  # 0 etiketi arka plan olduğu için 1'den başlıyoruz
+    min_area = 15  # We optimized this value as a result of manual tests.
+    max_area = 600  # We optimized this value as a result of manual tests.
+    for i in range(1, num_labels):  # Since label 0 is the background, we start from 1
         mask = (labels_im == i).astype("uint8") * 255
         area = cv2.countNonZero(mask)
         if min_area < area < max_area:
@@ -41,7 +41,7 @@ def seperateTxt (binary_roi , num_labels , labels_im):
     return output
 
 def readingNumber (seperated_roi ):
-    # OCR ile karakterleri okuyun
+    # Read characters with OCR
     reader = easyocr.Reader(['en'])
     result = reader.readtext(seperated_roi)
     return result
@@ -57,7 +57,6 @@ def showImage(cropped, contrasted_roi,median_filtered_roi,sharp_roi,blobedImg,bi
         cv2.imshow("CannyEdge", canny)
 
 def writeImage(cropped, contrasted_roi,median_filtered_roi,canny,blobedImg,binary_roi,seperatedRoi,img,img_gray , sharp_roi):
-        print("Deneme")
         cv2.imwrite(f"plaka_okum/Rapor_Tespit/{file_name}_CroppedX.png", cropped)
         cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_HighContrastX.png", contrasted_roi)
         cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_median_filteredX.png", median_filtered_roi)
@@ -69,28 +68,29 @@ def writeImage(cropped, contrasted_roi,median_filtered_roi,canny,blobedImg,binar
         cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_BinaryRoiX.png", binary_roi)
         cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_SeperatedBlobedX.png", seperatedRoi)
 
+
 def main():
 
     img = cv2.imread(img_path)
     img = cv2.resize(img, (720,720))
-    # Griye çevirme işlemi yapılıyor
+    # Conversion to gray is in progress
     img_gray = cv2.cvtColor(img , cv2.COLOR_BGR2GRAY)
     img_blur = cv2.bilateralFilter(img_gray,11,17,17)
 
-    #Kenarları bulmak için canny uygulanıyor
+    #Applying canny to find edges
     low_threshold = 110
     high_threshold = 250
     canny= cv2.Canny(img_blur, low_threshold,high_threshold)
 
 
-    # cv2.findContours fonksiyonu, 'canny' görüntüsündeki kenarları tespit eder ve bu kenarları kontur olarak döner.
-    # cv2.CHAIN_APPROX_SIMPLE parametresi, kontur noktalarının sayısını azaltarak yalnızca gerekli noktaları tutar.
-    # Sonuç olarak, 'contours' değişkeni konturların bir listesini ve hiyerarşik ilişkilerini içerir.
+    # The cv2.findContours function detects the edges in the 'canny' image and returns these edges as contours.
+    # The cv2.CHAIN_APPROX_SIMPLE parameter reduces the number of contour points, keeping only the necessary points.
+    # As a result, the 'contours' variable contains a list of contours and their hierarchical relationships.
     contours= cv2.findContours(canny.copy(), cv2.RETR_TREE , cv2.CHAIN_APPROX_SIMPLE)
 
-    # imutils.grab_contours fonksiyonu, contours listesindeki konturları alır.
-    # Bu konturları cv2.contourArea fonksiyonunu kullanarak alanlarına göre azalan sırada sıralar ve ilk 10 tanesini seçer.
-    # Sonuç olarak, en büyük 10 konturu 'cnts' listesinde saklar.
+    # The imutils.grab_contours function grabs the contours from the contours list.
+    # It sorts these contours in descending order according to their area using the cv2.contourArea function and selects the first 10 of them.
+    # As a result, it stores the 10 largest contours in the 'cnts' list.
     cnts = imutils.grab_contours(contours)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:10]
 
@@ -98,9 +98,9 @@ def main():
     cropped = None
     for cnt in cnts:
 
-        # epsilon, konturun çevresinin %1.8'i olarak hesaplanır. Bu, konturun yaklaştırılması (approximation) için hassasiyet değeridir.
+        # epsilon is calculated as 1.8% of the perimeter of the contour. This is the precision value for approximation of the contour.
         epsilon = 0.018 * cv2.arcLength(cnt,True)
-        # cv2.approxPolyDP fonksiyonu, epsilon hassasiyetine göre konturu daha az noktayla temsil eder.
+        # The cv2.approxPolyDP function represents the contour with fewer points according to epsilon precision.
         approx = cv2.approxPolyDP(cnt ,10, True)
 
         if len(approx) == 4 :
@@ -123,51 +123,43 @@ def main():
             # For example, you can skip the cropping step or set a default cropped region
             cropped = img_gray  # or set a default region
         else: 
-             
             (topx , topy) = (np.min(x), np.min(y))
             (bottomx , bottomy) = (np.max(x), np.max(y))
-
             cropped = img_gray[topx: bottomx  +1, topy: bottomy+1]
-
     else:
         print("Error")
 
         
-    
     if cropped is  None:
         print("No cropped detected")
         return 0
     
-    # Kontrastı artırmak için CLAHE kullandik
+    # Used CLAHE to increase contrast
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     contrasted_roi = clahe.apply(cropped)
 
-    # contrasted_roi uzerine medianBlur uygulanarak gurultu azaltilir. 
+    # Noise is reduced by applying medianBlur over the contrast-enhanced roi. 
     median_filtered_roi = cv2.medianBlur(contrasted_roi, 3)
 
-    #Goruntuye daha da cok keskinlik kazadirildi
+    #Added even more sharpness to the image
     sharp_roi = cv2.addWeighted(contrasted_roi,1.5 , median_filtered_roi, -0.5,0)
 
 
     if  screen is not None:
 
-
-        #Blob colorin fonksiyonu uygulaniyor
+        #Blob colorin function is applied
         blobedImg , binary_roi , num_labels , labels_im = blob_coloring(sharp_roi=sharp_roi)
 
-
-        #Blob coloring sonrasi yazilari ayirmak isin seperateTxt fonksiyonu aktive edildi
+        #The separateTxt function was activated to separate the texts after blob coloring.
         seperatedRoi = seperateTxt(binary_roi= binary_roi , num_labels= num_labels , labels_im= labels_im)
 
-        #Goruntunun son halinde yazi tespiti gerceklesiyor
+        #Text detection is performed in the final version of the image
         result = readingNumber(seperated_roi=seperatedRoi)
 
         showImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, canny=canny)
         writeImage(cropped=cropped , contrasted_roi=contrasted_roi, median_filtered_roi=median_filtered_roi,sharp_roi=sharp_roi, blobedImg=blobedImg, binary_roi=binary_roi,seperatedRoi=seperatedRoi, img=img, img_gray=img_gray, canny=canny)
         
-
-        # OCR sonuçlarını yazar
-
+        # Writes OCR results
         for (bbox, text, prob) in result:
             if float(prob) >= 0.4:
                 print(f'Text: {text}, Probability: {prob}')
