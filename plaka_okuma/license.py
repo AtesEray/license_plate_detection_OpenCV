@@ -1,11 +1,10 @@
 import cv2
 import numpy as np
-from PIL import Image
 import imutils
 import easyocr
 import os
 
-img_path =  "plaka_okuma\data\licence_plate.jpg"
+img_path =  "plaka_okuma/data/licence_plate.jpg"
 
 base_name = os.path.basename(img_path)
 file_name, file_ext = os.path.splitext(base_name)
@@ -59,16 +58,16 @@ def showImage(cropped, contrasted_roi,median_filtered_roi,sharp_roi,blobedImg,bi
 
 def writeImage(cropped, contrasted_roi,median_filtered_roi,canny,blobedImg,binary_roi,seperatedRoi,img,img_gray , sharp_roi):
         print("Deneme")
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Cropped.png", cropped)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_HighContrast.png", contrasted_roi)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_median_filtered.png", median_filtered_roi)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Sharped.png", sharp_roi)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Canny_Edge.png", canny)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Original.png", img)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_Gray.png", img_gray)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_BlobeColoring.png", blobedImg)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_BinaryRoi.png", binary_roi)
-        cv2.imwrite(f"plaka_okuma\Results/{file_name}_SeperatedBlobed.png", seperatedRoi)
+        cv2.imwrite(f"plaka_okum/Rapor_Tespit/{file_name}_CroppedX.png", cropped)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_HighContrastX.png", contrasted_roi)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_median_filteredX.png", median_filtered_roi)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_SharpedX.png", sharp_roi)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_Canny_EdgeX.png", canny)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_OriginalX.png", img)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_GrayX.png", img_gray)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_BlobeColoringX.png", blobedImg)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_BinaryRoiX.png", binary_roi)
+        cv2.imwrite(f"plaka_okuma/Rapor_Tespit/{file_name}_SeperatedBlobedX.png", seperatedRoi)
 
 def main():
 
@@ -109,7 +108,13 @@ def main():
             break
 
     if  screen is not None:
+
+        #We crated mask which shape in img_gray
         mask = np.zeros(img_gray.shape, np.uint8)
+
+        #Drawing contour to the mask from screen values
+        cv2.drawContours(mask, [screen], -1, (255), thickness=cv2.FILLED)
+
         (x,y) = np.where(mask == 255)
 
         if x.size == 0 or y.size == 0:
@@ -125,14 +130,15 @@ def main():
             cropped = img_gray[topx: bottomx  +1, topy: bottomy+1]
 
     else:
-        print("hata")
+        print("Error")
 
         
-    # Kontrastı artırmak için CLAHE kullandik
+    
     if cropped is  None:
-        print("Tespit basarisiz")
+        print("No cropped detected")
         return 0
-
+    
+    # Kontrastı artırmak için CLAHE kullandik
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     contrasted_roi = clahe.apply(cropped)
 
