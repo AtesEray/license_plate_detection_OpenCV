@@ -19,17 +19,25 @@ BLURRING_WEIGHT = -0.5
 def load_and_preprocess_image(image_path):
     img = cv2.imread(image_path)
     img = cv2.resize(img, (720, 720))
+    # Conversion to gray is in progress and applying blur
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_blur = cv2.bilateralFilter(img_gray, 11, 17, 17)
     return img, img_gray, img_blur
 
 def find_contours(canny_img):
+    # The cv2.findContours function detects the edges in the 'canny' image and returns these edges as contours.
+    # The cv2.CHAIN_APPROX_SIMPLE parameter reduces the number of contour points, keeping only the necessary points.
+    # As a result, the 'contours' variable contains a list of contours and their hierarchical relationships.
+     # The imutils.grab_contours function grabs the contours from the contours list
     contours = cv2.findContours(canny_img.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = imutils.grab_contours(contours)
     return sorted(contours, key=cv2.contourArea, reverse=True)[:10]
 
 def find_screen_contour(contours):
+    
     for cnt in contours:
+        # epsilon is calculated as 1.8% of the perimeter of the contour. This is the precision value for approximation of the contour.
+        # The cv2.approxPolyDP function represents the contour with fewer points according to epsilon precision.
         epsilon = 0.018 * cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, epsilon, True)
         if len(approx) == 4:
@@ -37,6 +45,8 @@ def find_screen_contour(contours):
     return None
 
 def create_mask_from_contour(img_shape, contour):
+    #We crated mask which shape in img_gray
+    #Drawing contour to the mask from screen values
     mask = np.zeros(img_shape, np.uint8)
     cv2.drawContours(mask, [contour], -1, (255), thickness=cv2.FILLED)
     return mask
@@ -51,13 +61,17 @@ def crop_to_contour(img_gray, mask):
     return img_gray[topx:bottomx + 1, topy:bottomy + 1]
 
 def apply_clahe(cropped_img):
+    # Used CLAHE to increase contrast
     clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP_LIMIT, tileGridSize=CLAHE_TILE_GRID_SIZE)
     return clahe.apply(cropped_img)
 
 def sharpen_image(contrasted_img, median_filtered_img):
+    #Added even more sharpness to the image
     return cv2.addWeighted(contrasted_img, SHARPENING_WEIGHT, median_filtered_img, BLURRING_WEIGHT, 0)
 
 def blob_coloring(binary_img):
+    # Connection component analysis (Blob coloring)
+    # Mark each component with a different color
     num_labels, labels_im = cv2.connectedComponents(binary_img)
     label_hue = np.uint8(179 * labels_im / np.max(labels_im))
     blank_ch = 255 * np.ones_like(label_hue)
@@ -67,15 +81,17 @@ def blob_coloring(binary_img):
     return labeled_img, num_labels, labels_im
 
 def separate_text(binary_img, num_labels, labels_im):
+    # Creates a blank image (same size, black)
     output = np.zeros_like(binary_img)
     for i in range(1, num_labels):
-        mask = (labels_im == i).astype("uint8") * 255
+        mask = (labels_im == i).astype("uint8") * 255 # Since label 0 is the background, we start from 1
         area = cv2.countNonZero(mask)
         if MIN_AREA < area < MAX_AREA:
             output = cv2.bitwise_or(output, mask)
     return output
 
 def read_number(roi_img):
+    # Read characters with OCR
     reader = easyocr.Reader(['en'])
     return reader.readtext(roi_img)
 
@@ -92,9 +108,10 @@ def write_images(output_path, file_name, *args):
 def main():
     base_name = os.path.basename(IMG_PATH)
     file_name, _ = os.path.splitext(base_name)
-    output_path = "plaka_okuma\deneme"
+    output_path = "plaka_okuma\Rapor_Tespit"
 
     img, img_gray, img_blur = load_and_preprocess_image(IMG_PATH)
+    #Applying canny to find edges
     canny = cv2.Canny(img_blur, LOW_THRESHOLD, HIGH_THRESHOLD)
     contours = find_contours(canny)
     screen_contour = find_screen_contour(contours)
